@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Box</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ece5dd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .chat-container {
+            background: #fff;
+            width: 400px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .chat-header {
+            background: #075E54;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background: #ece5dd;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 7px;
+            clear: both;
+            font-size: 14px;
+        }
+
+        .message.sent {
+            background: #dcf8c6;
+            float: right;
+        }
+
+        .message.received {
+            background: #fff;
+            float: left;
+        }
+
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #ccc;
+            background: white;
+            padding: 5px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            border: none;
+            padding: 10px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .chat-input button {
+            background: #075E54;
+            color: white;
+            border: none;
+            padding: 0 15px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            margin-left: 5px;
+        }
+
+        .name-input {
+            display: flex;
+            padding: 10px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .name-input input {
+            flex: 1;
+            padding: 8px;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">Chat Box</div>
+    <div class="name-input">
+        <input type="text" id="sender" placeholder="Enter your name">
+    </div>
+    <div class="chat-messages" id="chat"></div>
+    <div class="chat-input">
+        <input type="text" id="message" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+    let myName = "";
+
+    function connect() {
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected: ' + frame);
+            stompClient.subscribe('/topic/messages', function (msg) {
+                let message = JSON.parse(msg.body);
+                displayMessage(message);
+            });
+        });
+    }
+
+    function sendMessage() {
+        if (!myName) {
+            myName = document.getElementById("sender").value.trim();
+            if (!myName) {
+                alert("Enter your name first");
+                return;
+            }
+        }
+
+        let content = document.getElementById("message").value.trim();
+        if (!content) return;
+
+        stompClient.send("/app/sendMessage", {}, JSON.stringify({
+            sender: myName,
+            content: content
+        }));
+
+        document.getElementById("message").value = "";
+    }
+
+    function displayMessage(message) {
+        let chatBox = document.getElementById("chat");
+
+        let msgDiv = document.createElement("div");
+        msgDiv.classList.add("message");
+
+        if (message.sender === myName) {
+            msgDiv.classList.add("sent");
+        } else {
+            msgDiv.classList.add("received");
+        }
+
+        msgDiv.innerHTML = `<b>${message.sender}</b><br>${message.content}`;
+        chatBox.appendChild(msgDiv);
+
+        chatBox.scrollTop = chatBox.scrollHeight; // auto scroll
+    }
+
+    connect();
+</script>
+
+</body>
+</html>
+
